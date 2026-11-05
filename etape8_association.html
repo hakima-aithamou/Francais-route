@@ -1,0 +1,46 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FrançaisRoute — Relie avec des flèches</title><style>
+*{box-sizing:border-box}body{margin:0;background:#f0f8f3;color:#153f33;font-family:system-ui,sans-serif}.wrap{max-width:1040px;margin:auto;padding:18px}h1{font-size:clamp(26px,4vw,38px)}p{font-size:20px;line-height:1.5}.panel{background:white;padding:clamp(12px,3vw,30px);border-radius:22px;box-shadow:0 5px 24px #18452f1a}.stage{position:relative;min-height:390px}.columns{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:clamp(28px,10vw,115px);position:relative;z-index:1}.column{display:grid;grid-template-rows:auto repeat(4,72px);gap:12px;min-width:0}.column h2{text-align:center;font-size:clamp(15px,2vw,21px);margin:0;white-space:nowrap}.tile{background:white;border:3px solid #222;color:#111;font:600 clamp(15px,2.5vw,23px) system-ui;min-width:0;min-height:70px;border-radius:2px;padding:5px;cursor:pointer}.tile.selected{outline:4px solid #f5b93e;outline-offset:2px}.tile.done{background:#e2f5e7;border-color:#228653}.tile:focus-visible{outline:4px solid #dfac2a;outline-offset:2px}.arrows{position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:none;overflow:visible}.feedback{font-size:21px;font-weight:650;min-height:64px;margin-top:20px}.actions{display:flex;flex-wrap:wrap;gap:10px}button.action{border:0;background:#177c58;color:white;border-radius:13px;padding:13px 18px;font:700 19px system-ui;cursor:pointer}.action.alt{background:#dcefe3;color:#174d39}.progress{height:12px;background:#dceee2;border-radius:10px;overflow:hidden;margin:15px 0}.fill{height:100%;background:#e5b53b;width:0}.small{font-size:16px;color:#567161}a{color:#126d4b}@media(max-width:600px){.columns{gap:28px}.column{grid-template-rows:auto repeat(4,67px);gap:10px}.tile{font-size:15px;min-height:65px;border-width:2px}.column h2{font-size:14px}}
+</style></head><body><main class="wrap"><h1>📚 Relie les mots avec des flèches !</h1><p>Choisis un <b>pronom</b>, puis le bon <b>verbe</b>, puis la <b>fin de phrase</b>. Les flèches relient tes choix.</p><div class="progress"><div id="fill" class="fill"></div></div><section class="panel"><h2 id="title"></h2><div id="stage" class="stage"><svg id="arrows" class="arrows" aria-hidden="true"></svg><div id="columns" class="columns"></div></div><div id="feedback" class="feedback" aria-live="polite"></div><div id="actions" class="actions"></div></section><p class="small">La voix est déclenchée après une bonne association. Les réponses ne sont pas envoyées à un serveur.</p><p><a href="index.html">← Retour au parcours</a></p></main><script>
+const R=[[["Tu", "as", "faim"], ["Je", "suis", "heureux"], ["Vous", "avez", "un livre"], ["Elles", "sont", "jolies"]], [["Il", "est", "gentil"], ["Nous", "avons", "des crayons"], ["Ils", "sont", "contents"], ["J’", "ai", "sept ans"]], [["Elle", "a", "un chat"], ["Nous", "sommes", "à l’école"], ["Vous", "êtes", "prêts"], ["Je", "suis", "ici"]]];
+const COLORS=['#e54848','#209b4b','#a84bb3','#ee8cb3'];
+let round=0,choice=[null,null,null],done=new Set(),paths=[],buttons=[[],[],[]],ids=[[],[],[]];
+const $=id=>document.getElementById(id);
+const orders=[[0,1,2,3],[1,2,3,0],[2,3,0,1]];
+function speak(t){if(!('speechSynthesis' in window))return;speechSynthesis.cancel();let u=new SpeechSynthesisUtterance(t);u.lang='fr-CA';u.rate=.8;speechSynthesis.speak(u)}
+function full(pair){return (pair[0]==='J’'?pair[0]+pair[1]:pair[0]+' '+pair[1])+' '+pair[2]+'.'}
+function draw(){
+const svg=$('arrows'),stage=$('stage');svg.replaceChildren();
+const r=stage.getBoundingClientRect();if(!r.width||!r.height)return;
+svg.setAttribute('viewBox',`0 0 ${r.width} ${r.height}`);
+const all=paths.slice();
+if(choice[0]!==null&&choice[1]!==null)all.push([0,choice[0],choice[1],true]);
+if(choice[1]!==null&&choice[2]!==null)all.push([1,choice[1],choice[2],true]);
+for(const [col,a,b,temp] of all){
+const from=buttons[col][a].getBoundingClientRect(),to=buttons[col+1][b].getBoundingClientRect();
+const x1=from.right-r.left+3,y1=from.top+from.height/2-r.top;
+const x2=to.left-r.left-7,y2=to.top+to.height/2-r.top;
+const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy)||1,ux=dx/len,uy=dy/len;
+const color=COLORS[col===0?a:b];
+const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+for(const [k,v] of Object.entries({x1,y1,x2,y2,stroke:color,'stroke-width':4,'stroke-linecap':'round'}))line.setAttribute(k,v);
+if(temp)line.setAttribute('stroke-dasharray','8 5');
+svg.append(line);
+const head=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+const size=12,wide=6;
+head.setAttribute('points',`${x2},${y2} ${x2-ux*size-uy*wide},${y2-uy*size+ux*wide} ${x2-ux*size+uy*wide},${y2-uy*size-ux*wide}`);
+head.setAttribute('fill',color);svg.append(head);
+}}
+
+function render(){const cols=$('columns'),actions=$('actions');cols.replaceChildren();actions.replaceChildren();$('feedback').textContent='';choice=[null,null,null];done=new Set();paths=[];buttons=[[],[],[]];$('fill').style.width=round/R.length*100+'%';
+if(round===R.length){$('title').textContent='🌟 Bravo ! Tu as relié toutes les phrases !';$('stage').style.display='none';actions.append(action('🔁 Recommencer',()=>{round=0;render()}));return}
+$('stage').style.display='block';$('title').textContent=`Série ${round+1} sur ${R.length}`;const labels=['Pronom','Être ou avoir','Complément'];for(let c=0;c<3;c++){const col=document.createElement('div');col.className='column';const h=document.createElement('h2');h.textContent=labels[c];col.append(h);for(let k of orders[c]){const b=document.createElement('button');b.className='tile';b.textContent=R[round][k][c];b.onclick=()=>select(c,k);col.append(b);buttons[c][k]=b}cols.append(col)}
+actions.append(action('↩ Effacer le choix',()=>{choice=[null,null,null];for(let c=0;c<3;c++)buttons[c].forEach(b=>b.classList.remove('selected'));$('feedback').textContent='Choisis un pronom pour recommencer.';draw()},true));
+requestAnimationFrame(draw)}
+function action(t,fn,alt=false){let b=document.createElement('button');b.className='action'+(alt?' alt':'');b.textContent=t;b.onclick=fn;return b}
+function select(c,k){if(done.has(k))return;if(c>0&&choice[c-1]===null){$('feedback').textContent='Commence par la colonne de gauche.';return}if(c===0){choice=[null,null,null];}else if(c===1){choice[2]=null}
+choice[c]=k;for(let j=0;j<3;j++)buttons[j].forEach(b=>b.classList.remove('selected'));for(let j=0;j<3;j++)if(choice[j]!==null)buttons[j][choice[j]].classList.add('selected');
+draw();
+if(c===2){if(choice[0]===choice[1]&&choice[1]===choice[2]){let i=k;paths.push([0,i,i],[1,i,i]);done.add(i);for(let j=0;j<3;j++){buttons[j][i].classList.remove('selected');buttons[j][i].classList.add('done');buttons[j][i].disabled=true}const phrase=full(R[round][i]);$('feedback').textContent='⭐ Bravo ! '+phrase;speak(phrase);choice=[null,null,null];draw();if(done.size===4){$('actions').append(action('➜ Série suivante',()=>{round++;render()}))}}else{$('feedback').textContent='Essaie encore : les trois blocs doivent former une phrase correcte.';choice=[null,null,null];for(let j=0;j<3;j++)buttons[j].forEach(b=>b.classList.remove('selected'));draw()}}
+}
+window.addEventListener('resize',()=>{if(round<R.length)draw()});render();
+</script></body></html>
